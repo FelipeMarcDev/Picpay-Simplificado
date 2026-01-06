@@ -20,7 +20,7 @@ public class UserService {
         if(sender.getUserType() == UserType.MERCHANT){
             throw new Exception("Usuário do tipo Lojista não está autorizado a realizar transação!");
         }
-        if (sender.getBalance().compareTo(amount) <= 0) {
+        if (sender.getBalance().compareTo(amount) < 0) {
             throw new Exception("Saldo insuficiente!");
         }
     }
