@@ -53,19 +53,36 @@ public class TransactionService {
         this.userService.saveUser(sender);
         this.userService.saveUser(receiver);
 
-        this.notificationService.sendNotification(receiver, "Transação recebido com sucesso");
+        this.notificationService.sendNotification(receiver, "Transação recebida com sucesso");
 
-        this.notificationService.sendNotification(receiver, "Transação realizada com sucesso");
+        this.notificationService.sendNotification(sender, "Transação enviada com sucesso");
 
         return newTransaction;
     }
-    public boolean authorizeTransaction(User sender, BigDecimal value){
-       ResponseEntity<Map> authroizationResponse = restTemplate.getForEntity("https://util.devi.tools/api/v2/authorize", Map.class);
+    public boolean authorizeTransaction(User sender, BigDecimal value) {
 
-        if(authroizationResponse.getStatusCode() == HttpStatus.OK) {
-            String message = authroizationResponse.getBody().get("authorization").toString();
-            return "true".equals(message);} else return false;
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(
+                        "https://util.devi.tools/api/v2/authorize",
+                        Map.class
+                );
+
+        if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
+            return false;
         }
+
+        Map body = response.getBody();
+        Map data = (Map) body.get("data");
+
+        if (data == null) {
+            return false;
+        }
+
+        Boolean authorization = (Boolean) data.get("authorization");
+
+        return Boolean.TRUE.equals(authorization);
+    }
+
 
     public List<Transaction> getAllTransactions(){
         return this.repository.findAll();
