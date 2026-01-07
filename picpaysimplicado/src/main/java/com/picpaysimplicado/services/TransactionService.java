@@ -3,11 +3,14 @@ package com.picpaysimplicado.services;
 import com.picpaysimplicado.domain.transaction.Transaction;
 import com.picpaysimplicado.domain.user.User;
 import com.picpaysimplicado.dtos.TransactionDTO;
+import com.picpaysimplicado.infra.exceptions.TransactionNotAuthorizedException;
 import com.picpaysimplicado.repositories.TransactionRepository;
+import jakarta.transaction.TransactionalException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -35,10 +38,7 @@ public class TransactionService {
 
         userService.validateTransaction(sender,transaction.value());
 
-        boolean isAuthorized = this.authorizeTransaction(sender, transaction.value());
-        if (!isAuthorized){
-            throw new Exception("Transação não autorizada");
-        }
+        this.authorizeTransaction(sender,transaction.value());
 
         Transaction newTransaction = new Transaction();
         newTransaction.setAmount(transaction.value());
@@ -59,28 +59,26 @@ public class TransactionService {
 
         return newTransaction;
     }
-    public boolean authorizeTransaction(User sender, BigDecimal value) {
+    public void authorizeTransaction(User sender, BigDecimal value) {
 
-        ResponseEntity<Map> response =
-                restTemplate.getForEntity(
-                        "https://util.devi.tools/api/v2/authorize",
-                        Map.class
-                );
+        try {
+            ResponseEntity<Map> response =
+                    restTemplate.getForEntity(
+                            "https://util.devi.tools/api/v2/authorize",
+                            Map.class
+                    );
 
-        if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
-            return false;
+            Map body = response.getBody();
+            Map data = (Map) body.get("data");
+
+            if (data == null || !Boolean.TRUE.equals(data.get("authorization"))) {
+                throw new TransactionNotAuthorizedException();
+            }
+
+        } catch (HttpClientErrorException.Forbidden e) {
+            // 403 vindo da API externa
+            throw new TransactionNotAuthorizedException();
         }
-
-        Map body = response.getBody();
-        Map data = (Map) body.get("data");
-
-        if (data == null) {
-            return false;
-        }
-
-        Boolean authorization = (Boolean) data.get("authorization");
-
-        return Boolean.TRUE.equals(authorization);
     }
 
 

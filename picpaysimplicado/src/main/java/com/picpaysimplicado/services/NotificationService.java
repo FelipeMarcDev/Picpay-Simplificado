@@ -13,15 +13,18 @@ public class NotificationService {
     @Autowired
     private RestTemplate restTemplate;
 
-    public void sendNotification(User user, String message) throws Exception {
-        String email = user.getEmail();
+    public String sendNotification(User user, String message) throws Exception {
+       String email = user.getEmail();
         NotificationDTO notificationDTO = new NotificationDTO(email, message);
 
       ResponseEntity<String> notificationResponse = restTemplate.postForEntity("https://util.devi.tools/api/v1/notify", notificationDTO, String.class);
 
-        if(!(notificationResponse.getStatusCode() == HttpStatus.OK)){
+       if(notificationResponse.getStatusCode() == HttpStatus.GATEWAY_TIMEOUT){
             System.out.println("Erro ao enviar notificação!");
+            System.out.println(notificationResponse.getBody());
             throw new Exception("Serviço de notificação está fora do ar!");
         }
+        System.out.println("Realizado com sucesso!");
+        return "Realizado com sucesso!";
     }
 }
